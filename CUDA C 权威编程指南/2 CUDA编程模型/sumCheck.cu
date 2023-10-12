@@ -1,12 +1,14 @@
 #include <cstdio>
 #include <time.h>
-#include <sys/time.h>
+#include <windows.h>  
 
-double cpuSecond(){
-    struct timeval tp;
-    gettimeofday(&tp,NULL);
-    return ((double)tp.tv_sec + (double)tp.tv_usec*1.e-6);
-}
+//#include <sys/time.h>
+
+// double cpuSecond(){
+//     struct timeval tp;
+//     gettimeofday(&tp, NULL);
+//     return ((double)tp.tv_sec + (double)tp.tv_usec*1.e-6);
+// }
 
 void sumArraysCPU(float *A, float *B, float *C, const int N){
     for(int i=0;i<N;i++){
@@ -15,7 +17,8 @@ void sumArraysCPU(float *A, float *B, float *C, const int N){
 }
 
 __global__ void sumArraysGPU(float *A, float *B, float *C){
-    int i = threadIdx.x;
+    int i = threadIdx.x + blockIdx.x*blockDim.x; // 列
+    //int i = threadIdx.x;
     C[i] = B[i] + A[i];
 }
 
@@ -34,6 +37,7 @@ void checkResult(float *hostRef, float *gpuRef, const int N){
         if(abs(hostRef[i]-gpuRef[i])>eplison){
             match = 0;
             printf("do not match\n");
+            printf("host %5.2f gpu %5.2f at current %d\n", hostRef[i], gpuRef[i], i);
             break;
         }
     }
@@ -63,10 +67,11 @@ int main(int argc, char **argv){
     double iStart,iElaps;
 
     //initial data at host side
-    iStart = cpuSecond();
+    //iStart = cpuSecond();
+    iStart = GetTickCount();  
     initialData(h_A, nElem);
     initialData(h_B, nElem);
-    iElaps = cpuSecond() - iStart;
+    iElaps = GetTickCount() - iStart;
     printf("initial Time elapsed:%f\n", iElaps);
 
 
@@ -88,10 +93,10 @@ int main(int argc, char **argv){
     dim3 block(iLen);
     dim3 grid((nElem + block.x-1)/block.x);
 
-    iStart = cpuSecond();
+    iStart = GetTickCount();
     sumArraysGPU<<<grid, block>>>(d_A, d_B, d_C);
     cudaDeviceSynchronize();
-    iElaps = cpuSecond() - iStart;
+    iElaps = GetTickCount() - iStart;
     printf("sumArraysOnGPU <<<%d, %d>>> Time elapsed %f" \
         "sec\n", grid.x, block.x, iElaps);
     printf("Execution configuration <<<%d, %d>>>\n", grid.x, block.x);
@@ -100,9 +105,9 @@ int main(int argc, char **argv){
     cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost);
 
     //add vector at host side for result checks
-    iStart = cpuSecond();
+    iStart = GetTickCount();
     sumArraysCPU(h_A, h_B, hostRef, nElem);
-    iElaps = cpuSecond() - iStart;
+    iElaps = GetTickCount() - iStart;
     printf("cpu add Elaps:%f\n", iElaps);
 
     cudaDeviceSynchronize();

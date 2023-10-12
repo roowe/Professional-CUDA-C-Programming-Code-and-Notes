@@ -8,10 +8,10 @@ void initialInt(int *ip, int size){
 
 void printMatrix(int *C, const int nx, const int ny){
     int *ic = C;
-    printf("\nMatrix:%d, %d", nx, ny);
+    printf("\nMatrix:%d, %d\n", nx, ny);
     for(int iy=0;iy<ny;iy++){
         for(int ix=0;ix<nx;ix++){
-            printf("%3d\n",ic[ix]);
+            printf("%3d ",ic[ix]);
         }
         ic+=nx;
         printf("\n");
@@ -20,11 +20,15 @@ void printMatrix(int *C, const int nx, const int ny){
 }
 
 __global__ void printGPUIdx(int* A, const int nx, const int ny){
-    int ix = threadIdx.x + blockIdx.x*blockDim.x;
+    // nx=8, ny=6(行)
+    // dim3 block(4, 2);
+    // 块内threadIdx，块外blockIdx，块维数blockDim
+    int ix = threadIdx.x + blockIdx.x*blockDim.x; // 列
     int iy = threadIdx.y + blockIdx.y*blockDim.y;
-    unsigned int idx = iy*nx + ix;
+    unsigned int idx = iy*nx + ix; // nx是一行的个数
 
-    printf("thread_id (%d,%d) block_id (%d %d) coordinate (%d %d) global index (%d) ival (%d)\n", threadIdx.x, threadIdx.y, blockIdx.x, blockIdx.y,ix, iy, idx, A[idx]);
+    printf("thread_id (%d,%d) block_id (%d %d) coordinate (%d %d) global index (%d) ival (%d)\n",
+     threadIdx.x, threadIdx.y, blockIdx.x, blockIdx.y,ix, iy, idx, A[idx]);
 }
 
 void sumMatrixOnCPU(float *A, float *B, float*C, const int nx, const int ny){
@@ -56,7 +60,7 @@ int main(){
     printf("Using Device %d: %s\n", dev, deviceProp.name);
 
     int nx = 8;
-    int ny = 6;
+    int ny = 6; // 行数
     int nxy = nx*ny;
     int nBytes = nxy*(sizeof(float));
 
@@ -75,10 +79,10 @@ int main(){
     cudaMemcpy(d_MatA, h_A, nBytes, cudaMemcpyHostToDevice);
 
     //set up excution configuration
-    dim3 block(4, 2);
+    dim3 block(4, 2); // 8 6
     dim3 grid((nx + block.x-1)/block.x, (ny + block.y-1)/block.y);
 
-    //invoke kernel
+    //invoke kernel，块外，块内
     printGPUIdx<<< grid, block >>>(d_MatA, nx, ny);
     cudaDeviceSynchronize();
 
